@@ -1,0 +1,18 @@
+
+CREATE DATABASE RestAPI_DB;
+GO
+
+USE RestAPI_DB;
+GO
+
+CREATE TABLE users (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    age INT NOT NULL,
+    points INT DEFAULT 0,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL
+);
+GO
+
+SELECT * FROM users;
