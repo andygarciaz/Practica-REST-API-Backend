@@ -1,11 +1,22 @@
+
 import { getConnection, sql } from "../utils/db.js";
+import { verifyPassword } from "../utils/password.js";
+
+// ------------------------------------------
+// INICIAR SESIÓN
+// ------------------------------------------
 
 export const login = async (req, res) => {
     try {
         const { username, password } = req.body;
 
-        // Validamos que lleguen ambos datos
-        if (!username || !password) {
+        // Validar credenciales recibidas
+        if (
+            typeof username !== "string" ||
+            !username.trim() ||
+            typeof password !== "string" ||
+            !password
+        ) {
             return res.status(400).json({
                 login: false,
                 message: "Username y password son obligatorios"
@@ -14,39 +25,55 @@ export const login = async (req, res) => {
 
         const pool = await getConnection();
 
+        // Buscar usuario por username
         const result = await pool.request()
-            .input("username", sql.VarChar, username)
-            .query("SELECT * FROM users WHERE username = @username");
+            .input("username", sql.VarChar(50), username)
+            .query(`
+                SELECT
+                    id,
+                    name,
+                    age,
+                    points,
+                    username,
+                    password
+                FROM dbo.users
+                WHERE username = @username
+            `);
 
         const user = result.recordset[0];
 
-        // Si no existe el usuario
+        // Si el usuario no existe
         if (!user) {
             return res.status(401).json({
                 login: false,
-                message: "Usuario no encontrado"
+                message: "Credenciales incorrectas"
             });
         }
 
-        // Si la contraseña coincide
-        if (user.password === password) {
-            return res.status(200).json({
-                login: true,
-                message: "Inicio de sesión correcto",
-                user: {
-                    id: user.id,
-                    name: user.name,
-                    age: user.age,
-                    points: user.points,
-                    username: user.username
-                }
+        // Verificar contraseña usando scrypt
+        const passwordCorrecta = await verifyPassword(
+            password,
+            user.password
+        );
+
+        if (!passwordCorrecta) {
+            return res.status(401).json({
+                login: false,
+                message: "Credenciales incorrectas"
             });
         }
 
-        // Si existe el usuario pero la contraseña es incorrecta
-        return res.status(401).json({
-            login: false,
-            message: "Contraseña incorrecta"
+        // Inicio de sesión exitoso
+        return res.status(200).json({
+            login: true,
+            message: "Inicio de sesión correcto",
+            user: {
+                id: user.id,
+                name: user.name,
+                age: user.age,
+                points: user.points,
+                username: user.username
+            }
         });
 
     } catch (error) {
